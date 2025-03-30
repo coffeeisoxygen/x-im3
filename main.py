@@ -1,4 +1,5 @@
 import logging
+import threading
 import time
 
 import serial.tools.list_ports
@@ -29,11 +30,24 @@ def main():
     print("\n===== DETEKSI PERANGKAT =====")
     modem_manager = ModemManager()
 
+    # Show loading indicator
+    stop_loading = threading.Event()
+    loading_thread = threading.Thread(
+        target=show_loading_animation, args=(stop_loading,)
+    )
+    loading_thread.daemon = True
+    loading_thread.start()
+
+    # Run device detection
     start_time = time.time()
     devices = modem_manager.detect_all_devices()
     end_time = time.time()
 
-    print(f"Deteksi selesai dalam {end_time - start_time:.2f} detik")
+    # Stop loading animation
+    stop_loading.set()
+    loading_thread.join()
+
+    print(f"\nDeteksi selesai dalam {end_time - start_time:.2f} detik")
 
     # Tampilkan hasil deteksi
     connected_ports = devices["ports"]["connected"]
@@ -67,6 +81,16 @@ def main():
     display_port_management_ui(modem_manager, connected_ports)
 
     logger.info("Aplikasi selesai")
+
+
+def show_loading_animation(stop_event):
+    """Show animation while processing"""
+    animation = "|/-\\"
+    idx = 0
+    while not stop_event.is_set():
+        print(f"\rDeteksi perangkat... {animation[idx % len(animation)]}", end="")
+        idx += 1
+        time.sleep(0.1)
 
 
 def display_sim_cards(sim_cards, connected_ports):

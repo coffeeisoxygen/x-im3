@@ -1,10 +1,9 @@
 {
     "enabled_ports": [
-        "COM6",
-        "COM8",
         "COM11",
         "COM12",
-        "COM5",
+        "COM6",
+        "COM8",
         "COM7",
         "COM17",
         "COM10",
@@ -15,7 +14,8 @@
         "COM13",
         "COM16",
         "COM9",
-        "COM14"
+        "COM14",
+        "COM5"
     ],
     "disabled_ports": []
 }

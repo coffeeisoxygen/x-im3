@@ -1,6 +1,8 @@
 import json
 import os
+import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
 
 import serial
 import serial.tools.list_ports
@@ -59,12 +61,9 @@ class PortManager:
         except Exception as e:
             logger.error(f"Gagal menyimpan preferensi: {str(e)}")
 
-    def detect_ports(self, preserve_preferences=True):
+    def detect_ports(self, preserve_preferences=True, max_workers=10):
         """
-        Mendeteksi port secara lengkap (filter + verifikasi koneksi).
-
-        Args:
-            preserve_preferences: Apakah mempertahankan preferensi pengguna (default: True)
+        Mendeteksi port secara paralel dengan menggunakan thread pool.
         """
         logger.info("Memulai deteksi port...")
 
@@ -83,8 +82,11 @@ class PortManager:
             f"Ditemukan {len(potential_ports)} port potensial setelah filtering"
         )
 
-        # Langkah 2: Verifikasi koneksi dengan AT command
-        for port in potential_ports:
+        # Langkah 2: Verifikasi koneksi dengan AT command secara paralel
+        port_results = {}
+        lock = threading.Lock()
+
+        def verify_port(port):
             connection_status = self._verify_connection(port.device)
 
             # Tentukan status enabled berdasarkan preferensi sebelumnya
@@ -94,14 +96,23 @@ class PortManager:
             elif port.device in self.user_preferences["disabled_ports"]:
                 enabled = False
 
-            if connection_status:
-                self.ports[port.device] = SerialPort(
-                    port.device, port.name, "connected", enabled
-                )
-            else:
-                self.ports[port.device] = SerialPort(
-                    port.device, port.name, "disconnected", enabled
-                )
+            serial_port = SerialPort(
+                port.device,
+                port.name,
+                "connected" if connection_status else "disconnected",
+                enabled,
+            )
+
+            # Menggunakan lock untuk menghindari race condition saat menulis ke dict
+            with lock:
+                port_results[port.device] = serial_port
+
+        # Jalankan verifikasi port secara paralel dengan ThreadPoolExecutor
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            executor.map(verify_port, potential_ports)
+
+        # Update ports dictionary dengan hasil deteksi
+        self.ports = port_results
 
         logger.info(f"Deteksi selesai. Ditemukan {len(self.ports)} port modem")
         logger.info(
@@ -300,17 +311,22 @@ class PortManager:
             logger.error(f"Error saat deteksi SIM card pada {port_device}: {str(e)}")
             return None
 
-    def detect_all_simcards(self):
-        """Deteksi SIM card di semua port yang terhubung dan diaktifkan"""
+    def detect_all_simcards(self, max_workers=10):
+        """Deteksi SIM card di semua port secara paralel"""
         logger.info("Mendeteksi SIM card di semua port...")
 
         sim_cards = {}
         available_ports = self.get_available_ports()
+        lock = threading.Lock()
 
-        for port in available_ports:
+        def detect_sim(port):
             sim_info = self.detect_simcard(port.device)
             if sim_info and "iccid" in sim_info:
-                sim_cards[port.device] = sim_info
+                with lock:
+                    sim_cards[port.device] = sim_info
+
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            executor.map(detect_sim, available_ports)
 
         logger.info(f"Deteksi SIM card selesai. Ditemukan {len(sim_cards)} SIM card")
         return sim_cards

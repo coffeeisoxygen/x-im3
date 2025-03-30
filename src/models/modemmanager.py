@@ -1,4 +1,7 @@
+import queue
+import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
 
 import serial
 
@@ -15,18 +18,64 @@ class ModemManager:
     Mengelola interaksi antara PortManager dan SimCardManager.
     """
 
-    def __init__(self, config_file="modem_config.json"):
+    def __init__(self, config_file="modem_config.json", max_workers=10):
         """Inisialisasi ModemManager dengan komponen yang diperlukan"""
         logger.info("Inisialisasi ModemManager")
         self.port_manager = PortManager(config_file=config_file)
         self.sim_manager = SimCardManager()
+        self.executor = ThreadPoolExecutor(max_workers=max_workers)
+        self.command_queue = queue.Queue()
+        self.response_callbacks = {}
+        self.lock = threading.Lock()
+
+        # Start command processing thread
+        self.running = True
+        self.command_thread = threading.Thread(target=self._process_command_queue)
+        self.command_thread.daemon = True
+        self.command_thread.start()
+
+    def _process_command_queue(self):
+        """Process commands from queue in background"""
+        while self.running:
+            try:
+                # Get command with 1 second timeout
+                command_data = self.command_queue.get(timeout=1)
+                if command_data:
+                    port_device, command, callback, timeout = command_data
+                    try:
+                        result = self._execute_at_command(port_device, command, timeout)
+                        if callback:
+                            callback(result)
+                    except Exception as e:
+                        logger.error(f"Error executing command: {str(e)}")
+                    finally:
+                        self.command_queue.task_done()
+            except queue.Empty:
+                pass  # Just continue if queue is empty
+
+    def _execute_at_command(self, port_device, command, timeout):
+        """Execute AT command directly"""
+        # This is the actual implementation that runs in a worker thread
+        return self.send_at_command(port_device, command, timeout)
+
+    def send_at_command_async(self, port_device, command, callback=None, timeout=1):
+        """
+        Send AT command asynchronously
+
+        Args:
+            port_device: Port to use
+            command: AT command to send
+            callback: Function to call with response
+            timeout: Response timeout in seconds
+        """
+        self.command_queue.put((port_device, command, callback, timeout))
 
     def detect_all_devices(self):
-        """Deteksi semua perangkat (port dan SIM cards)"""
+        """Deteksi semua perangkat secara paralel"""
         logger.info("Mendeteksi semua perangkat")
 
-        # Deteksi port terlebih dahulu
-        self.port_manager.detect_ports()
+        # Deteksi port terlebih dahulu (sudah paralel di PortManager)
+        self.port_manager.detect_ports(max_workers=8)
 
         # Kemudian deteksi SIM card pada port yang terdeteksi
         sim_count = self.sim_manager.update_from_portmanager(self.port_manager)
@@ -114,6 +163,34 @@ class ModemManager:
             results[port.device] = result
 
         return results
+
+    def broadcast_command(self, command, callback=None, timeout=1):
+        """
+        Kirim AT command ke semua port tersedia secara paralel
+
+        Args:
+            command: AT command to send
+            callback: Function to call with each response
+            timeout: Timeout in seconds
+
+        Returns:
+            Future object that will contain results dict when done
+        """
+        available_ports = self.port_manager.get_available_ports()
+        results = {}
+
+        def process_port(port):
+            result = self.send_at_command(port.device, command, timeout)
+            with self.lock:
+                results[port.device] = result
+            if callback:
+                callback(port.device, result)
+
+        # Submit all tasks
+        futures = [self.executor.submit(process_port, port) for port in available_ports]
+
+        # Return future that represents completion of all tasks
+        return results, futures
 
     def dial_ussd(self, port_device, ussd_code, timeout=10):
         """
@@ -268,3 +345,11 @@ class ModemManager:
         except Exception as e:
             logger.error(f"Error saat mengirim SMS: {str(e)}")
             return False
+
+    def __del__(self):
+        """Cleanup when object is destroyed"""
+        self.running = False
+        if hasattr(self, "command_thread") and self.command_thread.is_alive():
+            self.command_thread.join(2.0)  # Wait up to 2 seconds
+        if hasattr(self, "executor"):
+            self.executor.shutdown(wait=False)

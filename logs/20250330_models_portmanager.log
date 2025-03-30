@@ -289,3 +289,56 @@
 2025-03-30 21:41:20 - INFO - models.portmanager - SIM card terdeteksi pada COM9: ICCID "89620100001704905823", MSISDN None
 2025-03-30 21:41:20 - INFO - models.portmanager - Mendeteksi SIM card pada port COM14
 2025-03-30 21:41:22 - INFO - models.portmanager - SIM card terdeteksi pada COM14: ICCID "89620100001704456330", MSISDN None
+2025-03-30 21:46:49 - INFO - models.portmanager - PortManager initialized
+2025-03-30 21:46:49 - INFO - models.portmanager - Memulai deteksi port...
+2025-03-30 21:46:49 - INFO - models.portmanager - Ditemukan 16 port potensial setelah filtering
+2025-03-30 21:46:50 - INFO - models.portmanager - Port COM11 terhubung dengan baud 115200
+2025-03-30 21:46:50 - INFO - models.portmanager - Port COM12 terhubung dengan baud 115200
+2025-03-30 21:46:50 - INFO - models.portmanager - Port COM6 terhubung dengan baud 115200
+2025-03-30 21:46:50 - INFO - models.portmanager - Port COM8 terhubung dengan baud 115200
+2025-03-30 21:46:50 - INFO - models.portmanager - Port COM7 terhubung dengan baud 115200
+2025-03-30 21:46:50 - INFO - models.portmanager - Port COM17 terhubung dengan baud 115200
+2025-03-30 21:46:50 - INFO - models.portmanager - Port COM10 terhubung dengan baud 115200
+2025-03-30 21:46:51 - INFO - models.portmanager - Port COM18 terhubung dengan baud 115200
+2025-03-30 21:46:51 - INFO - models.portmanager - Port COM15 terhubung dengan baud 115200
+2025-03-30 21:46:51 - INFO - models.portmanager - Port COM19 terhubung dengan baud 115200
+2025-03-30 21:46:51 - INFO - models.portmanager - Port COM20 terhubung dengan baud 115200
+2025-03-30 21:46:51 - INFO - models.portmanager - Port COM13 terhubung dengan baud 115200
+2025-03-30 21:46:52 - INFO - models.portmanager - Port COM16 terhubung dengan baud 115200
+2025-03-30 21:46:52 - INFO - models.portmanager - Port COM9 terhubung dengan baud 115200
+2025-03-30 21:46:52 - INFO - models.portmanager - Port COM14 terhubung dengan baud 115200
+2025-03-30 21:46:54 - INFO - models.portmanager - Deteksi selesai. Ditemukan 16 port modem
+2025-03-30 21:46:54 - INFO - models.portmanager -    - 15 port terhubung
+2025-03-30 21:46:54 - INFO - models.portmanager -    - 1 port tidak terhubung
+2025-03-30 21:46:54 - INFO - models.portmanager -    - 16 port diaktifkan
+2025-03-30 21:46:54 - INFO - models.portmanager -    - 0 port dinonaktifkan
+2025-03-30 21:46:54 - INFO - models.portmanager - Mendeteksi SIM card pada port COM11
+2025-03-30 21:46:54 - INFO - models.portmanager - Mendeteksi SIM card pada port COM12
+2025-03-30 21:46:54 - INFO - models.portmanager - Mendeteksi SIM card pada port COM6
+2025-03-30 21:46:54 - INFO - models.portmanager - Mendeteksi SIM card pada port COM8
+2025-03-30 21:46:54 - INFO - models.portmanager - Mendeteksi SIM card pada port COM7
+2025-03-30 21:46:54 - INFO - models.portmanager - Mendeteksi SIM card pada port COM17
+2025-03-30 21:46:54 - INFO - models.portmanager - Mendeteksi SIM card pada port COM10
+2025-03-30 21:46:54 - INFO - models.portmanager - Mendeteksi SIM card pada port COM18
+2025-03-30 21:46:56 - INFO - models.portmanager - SIM card terdeteksi pada COM10: ICCID "89620100001704483946", MSISDN None
+2025-03-30 21:46:56 - INFO - models.portmanager - Mendeteksi SIM card pada port COM15
+2025-03-30 21:46:56 - INFO - models.portmanager - SIM card terdeteksi pada COM12: ICCID "89620100001704905435", MSISDN None
+2025-03-30 21:46:56 - INFO - models.portmanager - Mendeteksi SIM card pada port COM19
+2025-03-30 21:46:56 - INFO - models.portmanager - SIM card terdeteksi pada COM11: ICCID "89620100001704484373", MSISDN None
+2025-03-30 21:46:56 - INFO - models.portmanager - SIM card terdeteksi pada COM6: ICCID "89620100001704914270", MSISDN None
+2025-03-30 21:46:56 - INFO - models.portmanager - Mendeteksi SIM card pada port COM13
+2025-03-30 21:46:56 - INFO - models.portmanager - Mendeteksi SIM card pada port COM20
+2025-03-30 21:46:56 - INFO - models.portmanager - SIM card terdeteksi pada COM7: ICCID "89620100001704909577", MSISDN None
+2025-03-30 21:46:56 - INFO - models.portmanager - SIM card terdeteksi pada COM18: ICCID "89620100001704484118", MSISDN None
+2025-03-30 21:46:56 - INFO - models.portmanager - Mendeteksi SIM card pada port COM9
+2025-03-30 21:46:56 - INFO - models.portmanager - SIM card terdeteksi pada COM8: ICCID "89620100001704913942", MSISDN None
+2025-03-30 21:46:56 - INFO - models.portmanager - Mendeteksi SIM card pada port COM14
+2025-03-30 21:46:56 - INFO - models.portmanager - SIM card terdeteksi pada COM17: ICCID "89620100001704484399", MSISDN None
+2025-03-30 21:46:56 - INFO - models.portmanager - Mendeteksi SIM card pada port COM16
+2025-03-30 21:46:58 - INFO - models.portmanager - SIM card terdeteksi pada COM16: ICCID "89620100001704908934", MSISDN None
+2025-03-30 21:46:58 - INFO - models.portmanager - SIM card terdeteksi pada COM15: ICCID "89620100001704484266", MSISDN None
+2025-03-30 21:46:58 - INFO - models.portmanager - SIM card terdeteksi pada COM9: ICCID "89620100001704905823", MSISDN None
+2025-03-30 21:46:58 - INFO - models.portmanager - SIM card terdeteksi pada COM19: ICCID "89620100001704909650", MSISDN None
+2025-03-30 21:46:58 - INFO - models.portmanager - SIM card terdeteksi pada COM20: ICCID "89620100001704914247", MSISDN None
+2025-03-30 21:46:58 - INFO - models.portmanager - SIM card terdeteksi pada COM14: ICCID "89620100001704456330", MSISDN None
+2025-03-30 21:46:58 - INFO - models.portmanager - SIM card terdeteksi pada COM13: ICCID "89620100001704450192", MSISDN None
