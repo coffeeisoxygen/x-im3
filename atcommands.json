@@ -1,0 +1,48 @@
+{
+  "at_commands": [
+    {
+      "command": "AT",
+      "description": "Basic attention command to check if the modem is responsive."
+    },
+    {
+      "command": "AT+ICCID",
+      "description": "Retrieve the ICCID (Integrated Circuit Card Identifier) of the SIM card."
+    },
+    {
+      "command": "AT+CSQ",
+      "description": "Check the signal quality of the network."
+    },
+    {
+      "command": "AT+COPS?",
+      "description": "Query the current network operator."
+    },
+    {
+      "command": "AT+CREG?",
+      "description": "Check the network registration status."
+    },
+    {
+      "command": "AT+CMGF=1",
+      "description": "Set the SMS message format to text mode."
+    },
+    {
+      "command": "AT+CMGS",
+      "description": "Send an SMS message."
+    },
+    {
+      "command": "AT+CPIN?",
+      "description": "Check the SIM card PIN status."
+    },
+    {
+      "command": "AT+CGATT?",
+      "description": "Check the GPRS attachment status."
+    },
+    {
+      "command": "AT+CGDCONT",
+      "description": "Define a PDP context for GPRS."
+    },
+    {
+      "command": "ATD*185#",
+      "description": "Dial a USSD code to retrieve balance and other information."
+    }
+  ]
+}
