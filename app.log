@@ -1,0 +1,25 @@
+2025-03-30 23:09:45,736 - __main__ - INFO - Starting application
+2025-03-30 23:09:45,736 - src.utils.config - INFO - Loaded configuration from config.json
+2025-03-30 23:09:45,736 - src.utils.config - INFO - Loaded configuration from config.json
+2025-03-30 23:09:45,736 - src.utils.config - INFO - Loaded configuration from config.json
+2025-03-30 23:09:45,736 - src.services.port_service - INFO - PortService initialized
+2025-03-30 23:09:45,736 - src.services.port_service - INFO - Starting port detection
+2025-03-30 23:09:48,825 - src.services.port_service - INFO - Port detection complete: 15/16 connected
+2025-03-30 23:09:48,833 - src.services.port_service - INFO - Enabling port COM12
+2025-03-30 23:09:48,833 - src.services.port_service - INFO - Enabling port COM17
+2025-03-30 23:09:48,833 - src.services.port_service - INFO - Enabling port COM10
+2025-03-30 23:09:48,833 - src.services.port_service - INFO - Enabling port COM7
+2025-03-30 23:09:48,833 - src.services.port_service - INFO - Enabling port COM18
+2025-03-30 23:09:48,833 - src.services.port_service - INFO - Enabling port COM8
+2025-03-30 23:09:48,833 - src.services.port_service - INFO - Enabling port COM11
+2025-03-30 23:09:48,833 - src.services.port_service - INFO - Enabling port COM15
+2025-03-30 23:09:48,890 - src.services.port_service - INFO - Enabling port COM6
+2025-03-30 23:09:48,890 - src.services.port_service - INFO - Enabling port COM19
+2025-03-30 23:09:48,892 - src.services.port_service - INFO - Enabling port COM13
+2025-03-30 23:09:48,892 - src.services.port_service - INFO - Enabling port COM20
+2025-03-30 23:09:48,892 - src.services.port_service - INFO - Enabling port COM16
+2025-03-30 23:09:49,047 - src.services.port_service - INFO - Enabling port COM14
+2025-03-30 23:09:49,047 - src.services.port_service - INFO - Enabling port COM9
+2025-03-30 23:09:49,061 - src.services.port_service - INFO - Port monitoring started
+2025-03-30 23:10:10,091 - src.services.port_service - INFO - Port monitoring stopped
+2025-03-30 23:10:10,091 - __main__ - INFO - Application shutdown

@@ -1,71 +1,78 @@
+import logging
 import time
 
 import serial
 import serial.tools.list_ports
 
-from src.utils.logging import get_logger
+from src.utils.config import load_config
 
-logger = get_logger("controllers.port")
+logger = logging.getLogger(__name__)
 
 
 class PortController:
-    """Controller untuk operasi tingkat rendah pada port serial"""
+    """Controller untuk operasi port serial"""
 
-    @staticmethod
-    def list_system_ports():
-        """Mendapatkan semua port yang tersedia pada sistem"""
+    def __init__(self, config_file="config.json"):
+        self.config = load_config(config_file)
+        logger.debug(
+            f"PortController initialized with baudrate: {self.config['baudrate']}"
+        )
+
+    def list_system_ports(self):
+        """List semua port yang tersedia pada sistem"""
         return list(serial.tools.list_ports.comports())
 
-    @staticmethod
-    def open_connection(port_device, baudrate=115200, timeout=1):
+    def open_connection(self, device_id):
         """Membuka koneksi ke port serial"""
         try:
-            connection = serial.Serial(port_device, baudrate, timeout=timeout)
-            time.sleep(0.5)  # Berikan waktu untuk inisialisasi
+            connection = serial.Serial(
+                device_id,
+                baudrate=self.config["baudrate"],
+                timeout=self.config["timeout"],
+            )
+            time.sleep(0.5)  # Waktu inisialisasi
+            logger.debug(f"Opened connection to {device_id}")
             return connection
         except Exception as e:
-            logger.error(f"Gagal membuka koneksi ke {port_device}: {str(e)}")
+            logger.error(f"Failed to open connection to {device_id}: {str(e)}")
             return None
 
-    @staticmethod
-    def send_command(connection, command, timeout=1):
-        """Mengirim perintah ke koneksi yang sudah terbuka"""
+    def send_command(self, connection, command):
+        """Mengirim perintah AT ke port"""
         try:
             if not connection or connection.closed:
-                logger.error("Koneksi tidak valid")
+                logger.error("Cannot send command: connection closed or invalid")
                 return None
 
             # Reset buffer
             connection.reset_input_buffer()
             connection.reset_output_buffer()
 
-            # Format AT command
+            # Format command
             if not command.upper().startswith("AT"):
                 command = "AT" + command
-
             if not command.endswith("\r\n"):
                 command += "\r\n"
 
-            # Kirim command
+            # Send and read response
             connection.write(command.encode())
-            time.sleep(timeout)
-
-            # Baca respons
+            time.sleep(self.config["timeout"])
             response = connection.read(connection.in_waiting).decode(
                 "utf-8", errors="ignore"
             )
+
+            logger.debug(f"Command: {command.strip()}, Response: {response.strip()}")
             return response
         except Exception as e:
-            logger.error(f"Error saat mengirim command: {str(e)}")
+            logger.error(f"Error sending command: {str(e)}")
             return None
 
-    @staticmethod
-    def close_connection(connection):
+    def close_connection(self, connection):
         """Menutup koneksi serial"""
         try:
             if connection and not connection.closed:
                 connection.close()
                 return True
         except Exception as e:
-            logger.error(f"Error saat menutup koneksi: {str(e)}")
+            logger.error(f"Error closing connection: {str(e)}")
         return False

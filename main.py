@@ -2,152 +2,128 @@ import logging
 import threading
 import time
 
-import serial.tools.list_ports
+from src.services.port_service import PortService
+from src.utils.config import load_config
 
-from src.models.modemmanager import ModemManager
-from src.utils.logging import setup_logger
+# Setup logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    handlers=[logging.StreamHandler(), logging.FileHandler("app.log")],
+)
+
+logger = logging.getLogger(__name__)
 
 
-def list_all_system_ports():
-    """Menampilkan semua port sistem sebagai referensi"""
-    ports = serial.tools.list_ports.comports()
-    print(f"Ditemukan {len(ports)} port pada sistem:")
-    for i, port in enumerate(ports):
-        print(f"{i + 1}. {port.device} - {port.description}")
-    return ports
+def monitor_ports(port_service):
+    """Loop untuk memonitor status port secara periodik"""
+    try:
+        while True:
+            active_ports = port_service.list_active_ports()
+            print("\n=== Status Port Aktif ===")
+            if not active_ports:
+                print("Tidak ada port aktif")
+            else:
+                for device_id, port in active_ports.items():
+                    status = "Terhubung" if port.is_connected() else "Terputus"
+                    print(f"{device_id} - {port.name} - {status}")
+            print("=========================")
+            time.sleep(2)
+    except Exception as e:
+        logger.error(f"Error in port monitoring: {str(e)}")
 
 
 def main():
-    # Aktifkan logging
-    logger = setup_logger("main", level=logging.DEBUG)
-    logger.info("Aplikasi dimulai")
+    """Fungsi utama program"""
+    logger.info("Starting application")
 
-    # Tampilkan semua port yang tersedia pada sistem
-    print("\n===== SEMUA PORT SISTEM =====")
-    list_all_system_ports()
+    # Load configuration
+    config = load_config()
 
-    # Inisialisasi modem manager dan deteksi perangkat
-    print("\n===== DETEKSI PERANGKAT =====")
-    modem_manager = ModemManager()
+    # Setup port service
+    port_service = PortService()
 
-    # Show loading indicator
-    stop_loading = threading.Event()
-    loading_thread = threading.Thread(
-        target=show_loading_animation, args=(stop_loading,)
-    )
-    loading_thread.daemon = True
-    loading_thread.start()
+    try:
+        # Deteksi port
+        print("Mendeteksi port...")
+        detected_ports = port_service.detect_ports()
+        print(f"\nDitemukan {len(detected_ports)} port:")
 
-    # Run device detection
-    start_time = time.time()
-    devices = modem_manager.detect_all_devices()
-    end_time = time.time()
+        if detected_ports:
+            for device_id, port in detected_ports.items():
+                print(f"- {port}")
+        else:
+            print("Tidak ada port terdeteksi")
 
-    # Stop loading animation
-    stop_loading.set()
-    loading_thread.join()
+        # Auto-activate all connected ports
+        for device_id, port in port_service.list_connected_ports().items():
+            port_service.enable_port(device_id)
+            print(f"Port {device_id} diaktifkan otomatis")
 
-    print(f"\nDeteksi selesai dalam {end_time - start_time:.2f} detik")
+        # Start port monitoring thread
+        port_service.start_monitoring()
 
-    # Tampilkan hasil deteksi
-    connected_ports = devices["ports"]["connected"]
-    disconnected_ports = devices["ports"]["disconnected"]
-    sim_cards = devices["sim_cards"]["all"]
-    sim_count = devices["sim_cards"]["count"]
+        # Display monitoring information in separate thread
+        monitor_thread = threading.Thread(target=monitor_ports, args=(port_service,))
+        monitor_thread.daemon = True
+        monitor_thread.start()
 
-    # Display connected ports
-    if connected_ports:
-        print(f"\nModem terhubung ({len(connected_ports)}):")
-        for i, port in enumerate(connected_ports):
-            print(f"{i + 1}. {port.device} - {port.name} - {port.status}")
-    else:
-        print("\nTidak ada modem yang terhubung")
+        # Command line interface
+        print("\nPerintah yang tersedia:")
+        print("  list               - Tampilkan semua port")
+        print("  enable [port_id]   - Aktifkan port")
+        print("  disable [port_id]  - Nonaktifkan port")
+        print("  refresh [port_id]  - Perbarui status port")
+        print("  enable-all         - Aktifkan semua port")
+        print("  disable-all        - Nonaktifkan semua port")
+        print("  exit               - Keluar program")
 
-    # Display disconnected ports
-    if disconnected_ports:
-        print(f"\nModem terdeteksi tapi tidak terhubung ({len(disconnected_ports)}):")
-        for i, port in enumerate(disconnected_ports):
-            print(f"{i + 1}. {port.device} - {port.name} - {port.status}")
+        while True:
+            cmd = input("\nCommand: ").strip().lower()
 
-    # Display SIM cards
-    print("\n===== DETEKSI SIM CARD =====")
-    if sim_count == 0:
-        print("Tidak ada SIM card terdeteksi pada modem yang terhubung!")
-    else:
-        print(f"\nSIM card terdeteksi ({sim_count}):")
-        display_sim_cards(sim_cards, connected_ports)
-
-    # Port management UI
-    display_port_management_ui(modem_manager, connected_ports)
-
-    logger.info("Aplikasi selesai")
-
-
-def show_loading_animation(stop_event):
-    """Show animation while processing"""
-    animation = "|/-\\"
-    idx = 0
-    while not stop_event.is_set():
-        print(f"\rDeteksi perangkat... {animation[idx % len(animation)]}", end="")
-        idx += 1
-        time.sleep(0.1)
-
-
-def display_sim_cards(sim_cards, connected_ports):
-    """Tampilkan informasi SIM card"""
-    for i, sim in enumerate(sim_cards):
-        # Temukan port yang terkait dengan SIM ini
-        port_info = ""
-        for port in connected_ports:
-            if hasattr(sim, "port_device") and port.device == sim.port_device:
-                port_info = f"({port.name})"
+            if cmd == "exit":
                 break
-
-        # Format display values
-        msisdn_display = (
-            sim.msisdn if sim.msisdn != "Unknown" else "Nomor tidak diketahui"
-        )
-        iccid_display = (
-            f"{sim.iccid[:4]}...{sim.iccid[-4:]}" if len(sim.iccid) > 8 else sim.iccid
-        )
-        signal_display = f"{sim.signal}/31" if isinstance(sim.signal, int) else "?"
-
-        # Print information
-        print(f"{i + 1}. Port: {sim.port_device} {port_info}")
-        print(f"   ICCID: {iccid_display}")
-        print(f"   Nomor: {msisdn_display}")
-        print(f"   Sinyal: {signal_display}")
-
-
-def display_port_management_ui(modem_manager, connected_ports):
-    """Tampilkan UI untuk manajemen port"""
-    print("\n===== MENGELOLA PORT MODEM =====")
-    print("Contoh cara mengaktifkan/menonaktifkan port:")
-    print("  modem_manager.enable_port('COM6')")
-    print("  modem_manager.disable_port('COM7')")
-
-    if connected_ports:
-        try:
-            choice = input("\nApakah ingin mengubah status port? (y/n): ")
-            if choice.lower() == "y":
-                port_to_change = input("Masukkan port (contoh: COM6): ")
-                action = input("Aktifkan port ini? (y/n): ")
-
-                if action.lower() == "y":
-                    modem_manager.enable_port(port_to_change)
-                    print(f"Port {port_to_change} diaktifkan")
+            elif cmd == "list":
+                all_ports = port_service.list_all_ports()
+                print("\nSemua port:")
+                for device_id, port in all_ports.items():
+                    print(f"- {port}")
+            elif cmd.startswith("enable "):
+                port_id = cmd.split(" ", 1)[1]
+                if port_service.enable_port(port_id):
+                    print(f"Port {port_id} diaktifkan.")
                 else:
-                    modem_manager.disable_port(port_to_change)
-                    print(f"Port {port_to_change} dinonaktifkan")
+                    print(f"Port {port_id} tidak ditemukan.")
+            elif cmd.startswith("disable "):
+                port_id = cmd.split(" ", 1)[1]
+                if port_service.disable_port(port_id):
+                    print(f"Port {port_id} dinonaktifkan.")
+                else:
+                    print(f"Port {port_id} tidak ditemukan.")
+            elif cmd.startswith("refresh "):
+                port_id = cmd.split(" ", 1)[1]
+                if port_service.refresh_port(port_id):
+                    print(f"Port {port_id} terhubung.")
+                else:
+                    print(f"Port {port_id} terputus atau tidak ditemukan.")
+            elif cmd == "enable-all":
+                port_service.enable_all_ports()
+                print("Semua port diaktifkan.")
+            elif cmd == "disable-all":
+                port_service.disable_all_ports()
+                print("Semua port dinonaktifkan.")
+            else:
+                print("Perintah tidak dikenal.")
 
-                # Tampilkan status terbaru
-                print("\nStatus port setelah perubahan:")
-                port_status = modem_manager.get_port_status()
-                for device, status in port_status.items():
-                    status_text = "Aktif" if status["enabled"] else "Nonaktif"
-                    print(f"{device}: {status_text}")
-        except KeyboardInterrupt:
-            print("\nOperasi dibatalkan oleh pengguna")
+    except KeyboardInterrupt:
+        print("\nProgram dihentikan oleh pengguna.")
+    except Exception as e:
+        logger.error(f"Unexpected error: {str(e)}")
+    finally:
+        # Cleanup
+        port_service.stop_monitoring()
+        logger.info("Application shutdown")
+        print("Program berakhir.")
 
 
 if __name__ == "__main__":

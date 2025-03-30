@@ -22,16 +22,25 @@ class PortDevice(Device):
     def __init__(self, device_id, name=None):
         self.device_id = device_id
         self.name = name or device_id
-        self.status = "unknown"
-        self.enabled = True
+        self.status = "unknown"  # unknown, connected, disconnected
+        self.active = False  # Flag apakah port diaktifkan oleh user
         self.last_activity = None
 
     def get_identifier(self):
+        """Implementasi method dari base class"""
         return self.device_id
 
     def is_connected(self):
+        """Implementasi method dari base class"""
         return self.status == "connected"
 
+    def is_active(self):
+        """Memeriksa apakah port diaktifkan oleh user"""
+        return self.active
+
     def mark_activity(self):
-        """Catat aktivitas terbaru pada perangkat"""
+        """Catat aktivitas terbaru"""
         self.last_activity = datetime.now()
+
+    def __repr__(self):
+        return f"{self.device_id} ({self.name}) - Status: {self.status}, Active: {self.active}"

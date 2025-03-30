@@ -1,148 +1,237 @@
+import logging
 import threading
+import time
 from concurrent.futures import ThreadPoolExecutor
 
 from src.controllers.port_controller import PortController
 from src.models.devices.port import SerialPort
-from src.utils.logging import get_logger
+from src.utils.config import load_config
 
-logger = get_logger("services.port")
+logger = logging.getLogger(__name__)
 
 
 class PortService:
     """Service untuk deteksi dan manajemen port"""
 
-    def __init__(self, config_file="modem_config.json"):
-        self.ports = {}
-        self.filters = ["USB Serial", "Modem", "GSM", "WWAN", "HUAWEI", "ZTE", "Sierra"]
-        self.config_file = config_file
-        self.port_controller = PortController()
+    def __init__(self, config_file="config.json"):
+        self.config = load_config(config_file)
+        self.ports = {}  # Dictionary of SerialPort objects
+        self.port_controller = PortController(config_file)
 
-    def detect_ports(self, max_workers=10):
-        """Mendeteksi port dengan filter dan verifikasi"""
-        logger.info("Memulai deteksi port...")
+        # Thread management
+        self.monitor_thread = None
+        self.monitoring = False
+        self.lock = threading.Lock()
 
-        # Filter awal
-        potential_ports = self._filter_ports()
-        logger.info(f"Ditemukan {len(potential_ports)} port potensial")
+        logger.info("PortService initialized")
 
-        # Verifikasi koneksi dengan multithreading
-        results = {}
+    def detect_ports(self):
+        """Mendeteksi dan memverifikasi port yang tersedia"""
+        logger.info("Starting port detection")
+        system_ports = self.port_controller.list_system_ports()
+        logger.debug(f"Found {len(system_ports)} system ports")
+
+        # Remember active state of existing ports
+        active_states = {}
+        for device_id, port in self.ports.items():
+            active_states[device_id] = port.active
+
+        # Results container and synchronization
+        verified_ports = {}
         lock = threading.Lock()
 
         def verify_port(port_info):
             device_id = port_info.device
             name = port_info.description
 
-            # Buat port device
-            port = SerialPort(device_id, name, status="unknown")
+            # Skip excluded ports
+            if any(ex.lower() in name.lower() for ex in self.config["excluded_ports"]):
+                logger.debug(f"Skipping excluded port: {device_id} - {name}")
+                return
 
-            # Verifikasi koneksi
+            # Only process ports matching our filters, unless filters are empty
+            filters = self.config["port_filters"]
+            if filters and not any(f.lower() in name.lower() for f in filters):
+                logger.debug(f"Port didn't match any filter: {device_id} - {name}")
+                return
+
+            # Create port object
+            port = SerialPort(device_id, name)
+
+            # Restore active state if port existed before
+            if device_id in active_states:
+                port.set_active(active_states[device_id])
+
+            # Verify connection
             connection = self.port_controller.open_connection(device_id)
             if connection:
-                # Coba AT command dasar
+                logger.debug(f"Testing connection to {device_id}")
                 response = self.port_controller.send_command(connection, "AT")
-                if response and "OK" in response:
-                    port.set_status("connected")
-                else:
-                    port.set_status("disconnected")
-
+                connected = response and "OK" in response
+                port.set_status("connected" if connected else "disconnected")
                 self.port_controller.close_connection(connection)
             else:
                 port.set_status("disconnected")
 
-            # Thread-safe update results
+            # Thread-safe update of results
             with lock:
-                results[device_id] = port
+                verified_ports[device_id] = port
+                logger.debug(f"Port {device_id} verified: {port.status}")
 
-        # Proses verifikasi paralel
-        with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            executor.map(verify_port, potential_ports)
+        # Use multithreading for parallel detection
+        with ThreadPoolExecutor(max_workers=self.config["max_workers"]) as executor:
+            executor.map(verify_port, system_ports)
 
-        # Update ports
-        self.ports = results
+        # Update ports dictionary
+        with self.lock:
+            self.ports = verified_ports
 
         connected_count = sum(1 for p in self.ports.values() if p.is_connected())
         logger.info(
-            f"Deteksi selesai. {connected_count}/{len(self.ports)} port terhubung"
+            f"Port detection complete: {connected_count}/{len(self.ports)} connected"
         )
 
         return self.ports
 
-    def _filter_ports(self):
-        """Filter port berdasarkan deskripsi"""
-        all_ports = self.port_controller.list_system_ports()
-        filtered = []
+    def start_monitoring(self):
+        """Start background monitoring thread"""
+        if self.monitoring:
+            logger.warning("Port monitoring already running")
+            return False
 
-        for port in all_ports:
-            # Skip port yang jelas bukan modem
-            excluded = ["Bluetooth", "Printer", "Mouse", "Keyboard"]
-            if any(ex.lower() in port.description.lower() for ex in excluded):
-                continue
+        self.monitoring = True
+        self.monitor_thread = threading.Thread(target=self._monitor_ports)
+        self.monitor_thread.daemon = True
+        self.monitor_thread.start()
+        logger.info("Port monitoring started")
+        return True
 
-            # Filter berdasarkan deskripsi
-            if any(f.lower() in port.description.lower() for f in self.filters):
-                filtered.append(port)
+    def stop_monitoring(self):
+        """Stop background monitoring thread"""
+        if not self.monitoring:
+            return False
 
-        return filtered
+        self.monitoring = False
+        if self.monitor_thread and self.monitor_thread.is_alive():
+            self.monitor_thread.join(timeout=2.0)
+        logger.info("Port monitoring stopped")
+        return True
 
-    def get_port(self, device_id):
-        """Mendapatkan port berdasarkan ID"""
-        return self.ports.get(device_id)
+    def _monitor_ports(self):
+        """Background thread to monitor port status"""
+        logger.debug("Port monitor thread started")
 
-    def get_all_ports(self):
+        while self.monitoring:
+            try:
+                logger.debug("Checking port statuses")
+                for device_id, port in list(self.ports.items()):
+                    connection = self.port_controller.open_connection(device_id)
+                    if connection:
+                        response = self.port_controller.send_command(connection, "AT")
+                        connected = response and "OK" in response
+                        with self.lock:
+                            port.set_status(
+                                "connected" if connected else "disconnected"
+                            )
+                        self.port_controller.close_connection(connection)
+                    else:
+                        with self.lock:
+                            port.set_status("disconnected")
+
+                # Wait for next check interval
+                time.sleep(self.config["port_monitor_interval"])
+            except Exception as e:
+                logger.error(f"Error in port monitoring: {str(e)}")
+                time.sleep(5)  # Wait a bit longer if there was an error
+
+        logger.debug("Port monitor thread stopped")
+
+    def list_all_ports(self):
         """Mendapatkan semua port"""
-        return list(self.ports.values())
+        with self.lock:
+            return self.ports.copy()
 
-    def get_connected_ports(self):
-        """Mendapatkan port yang terhubung"""
-        return [p for p in self.ports.values() if p.is_connected()]
+    def list_active_ports(self):
+        """Mengambil semua port yang aktif"""
+        with self.lock:
+            return {
+                device_id: port for device_id, port in self.ports.items() if port.active
+            }
 
-    def get_available_ports(self):
-        """Mendapatkan port yang tersedia untuk digunakan"""
-        return [p for p in self.ports.values() if p.is_available()]
+    def list_connected_ports(self):
+        """Mengambil semua port yang terhubung"""
+        with self.lock:
+            return {
+                device_id: port
+                for device_id, port in self.ports.items()
+                if port.is_connected()
+            }
+
+    def list_available_ports(self):
+        """Mengambil semua port yang tersedia untuk digunakan (terhubung dan aktif)"""
+        with self.lock:
+            return {
+                device_id: port
+                for device_id, port in self.ports.items()
+                if port.is_connected() and port.active
+            }
 
     def enable_port(self, device_id):
-        """Mengaktifkan port"""
-        if device_id in self.ports:
-            self.ports[device_id].enabled = True
-            logger.info(f"Port {device_id} diaktifkan")
-            return True
+        """Mengaktifkan port tertentu"""
+        with self.lock:
+            if device_id in self.ports:
+                logger.info(f"Enabling port {device_id}")
+                self.ports[device_id].set_active(True)
+                return True
         return False
 
     def disable_port(self, device_id):
-        """Menonaktifkan port"""
-        if device_id in self.ports:
-            self.ports[device_id].enabled = False
-            logger.info(f"Port {device_id} dinonaktifkan")
-            return True
+        """Menonaktifkan port tertentu"""
+        with self.lock:
+            if device_id in self.ports:
+                logger.info(f"Disabling port {device_id}")
+                self.ports[device_id].set_active(False)
+                return True
         return False
 
+    def enable_all_ports(self):
+        """Mengaktifkan semua port"""
+        with self.lock:
+            for port in self.ports.values():
+                port.set_active(True)
+        logger.info(f"Enabled all ports ({len(self.ports)})")
+
+    def disable_all_ports(self):
+        """Menonaktifkan semua port"""
+        with self.lock:
+            for port in self.ports.values():
+                port.set_active(False)
+        logger.info(f"Disabled all ports ({len(self.ports)})")
+
+    def get_port(self, device_id):
+        """Mendapatkan port berdasarkan ID"""
+        with self.lock:
+            return self.ports.get(device_id)
+
     def refresh_port(self, device_id):
-        """Refresh status koneksi single port"""
-        if device_id not in self.ports:
+        """Refresh status koneksi port tertentu"""
+        port = self.get_port(device_id)
+        if not port:
+            logger.warning(f"Port {device_id} not found")
             return False
 
-        port = self.ports[device_id]
         connection = self.port_controller.open_connection(device_id)
         if connection:
             response = self.port_controller.send_command(connection, "AT")
-            port.set_status("connected" if response and "OK" in response else "disconnected")
+            with self.lock:
+                port.set_status(
+                    "connected" if response and "OK" in response else "disconnected"
+                )
             self.port_controller.close_connection(connection)
+            logger.debug(f"Refreshed port {device_id}: {port.status}")
+            return port.is_connected()
         else:
-            port.set_status("disconnected")
-
-        return port.is_connected()
-
-    def enable_multiple_ports(self, device_ids):
-        """Mengaktifkan beberapa port sekaligus"""
-        results = {}
-        for device_id in device_ids:
-            results[device_id] = self.enable_port(device_id)
-        return results
-
-    def disable_multiple_ports(self, device_ids):
-        """Menonaktifkan beberapa port sekaligus"""
-        results = {}
-        for device_id in device_ids:
-            results[device_id] = self.disable_port(device_id)
-        return results
+            with self.lock:
+                port.set_status("disconnected")
+            logger.debug(f"Could not connect to port {device_id}")
+            return False
