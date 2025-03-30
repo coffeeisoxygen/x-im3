@@ -11,5 +11,9 @@
     "ZTE",
     "Sierra"
   ],
-  "excluded_ports": ["Bluetooth", "Printer", "Mouse", "Keyboard"]
+  "excluded_ports": ["Bluetooth", "Printer", "Mouse", "Keyboard"],
+  "iccid": "ICCID:\\s*(\\d+)",
+  "msisdn": "number\\s+(\\d+)",
+  "balance": "balance\\s+([\\d,\\.]+)",
+  "active_until": "active\\s+(\\d{2}-\\d{2}-\\d{4})"
 }

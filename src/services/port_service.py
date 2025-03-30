@@ -220,20 +220,38 @@ class PortService:
             logger.warning(f"Port {device_id} not found")
             return False
 
+        logger.debug(f"Refreshing port status: {device_id}")
+
+        # Coba buka koneksi baru untuk verifikasi
         connection = self.port_controller.open_connection(device_id)
         if connection:
-            response = self.port_controller.send_command(connection, "AT")
-            with self.lock:
-                port.set_status(
-                    "connected" if response and "OK" in response else "disconnected"
-                )
-            self.port_controller.close_connection(connection)
-            logger.debug(f"Refreshed port {device_id}: {port.status}")
-            return port.is_connected()
+            try:
+                # Kirim AT command dasar dan periksa respons
+                response = self.port_controller.send_command(connection, "AT")
+                is_connected = response and "OK" in response
+
+                # Update status port
+                with self.lock:
+                    port.set_status("connected" if is_connected else "disconnected")
+
+                logger.debug(f"Port {device_id} status refreshed to: {port.status}")
+                self.port_controller.close_connection(connection)
+                return is_connected
+            except Exception as e:
+                logger.error(f"Error refreshing port {device_id}: {str(e)}")
+                with self.lock:
+                    port.set_status("disconnected")
+                return False
+            finally:
+                # Pastikan koneksi ditutup
+                self.port_controller.close_connection(connection)
         else:
+            # Gagal membuka koneksi = terputus
             with self.lock:
                 port.set_status("disconnected")
-            logger.debug(f"Could not connect to port {device_id}")
+            logger.debug(
+                f"Port {device_id} status set to disconnected (connection failed)"
+            )
             return False
 
     def get_sorted_ports(self):

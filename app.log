@@ -97,3 +97,42 @@
 2025-03-30 23:42:52,367 - src.services.port_monitor - INFO - Port monitoring started
 2025-03-30 23:43:16,500 - src.services.port_monitor - INFO - Port monitoring stopped
 2025-03-30 23:43:16,506 - __main__ - INFO - Application shutdown
+2025-03-30 23:45:34,994 - __main__ - INFO - Starting application
+2025-03-30 23:45:34,994 - src.utils.config - INFO - Loaded configuration from config.json
+2025-03-30 23:45:34,998 - src.utils.config - INFO - Loaded configuration from config.json
+2025-03-30 23:45:35,000 - src.utils.config - INFO - Loaded configuration from config.json
+2025-03-30 23:45:35,000 - src.services.port_service - INFO - PortService initialized
+2025-03-30 23:45:35,001 - src.services.port_service - INFO - Starting port detection
+2025-03-30 23:45:38,081 - src.services.port_service - INFO - Port detection complete: 16/16 connected
+2025-03-30 23:45:38,088 - src.services.port_service - INFO - Enabling port COM12
+2025-03-30 23:45:38,088 - src.services.port_service - INFO - Enabling port COM11
+2025-03-30 23:45:38,088 - src.services.port_service - INFO - Enabling port COM15
+2025-03-30 23:45:38,094 - src.services.port_service - INFO - Enabling port COM6
+2025-03-30 23:45:38,094 - src.services.port_service - INFO - Enabling port COM8
+2025-03-30 23:45:38,096 - src.services.port_service - INFO - Enabling port COM5
+2025-03-30 23:45:38,096 - src.services.port_service - INFO - Enabling port COM17
+2025-03-30 23:45:38,096 - src.services.port_service - INFO - Enabling port COM10
+2025-03-30 23:45:38,099 - src.services.port_service - INFO - Enabling port COM7
+2025-03-30 23:45:38,099 - src.services.port_service - INFO - Enabling port COM18
+2025-03-30 23:45:38,099 - src.services.port_service - INFO - Enabling port COM20
+2025-03-30 23:45:38,104 - src.services.port_service - INFO - Enabling port COM19
+2025-03-30 23:45:38,105 - src.services.port_service - INFO - Enabling port COM9
+2025-03-30 23:45:38,105 - src.services.port_service - INFO - Enabling port COM13
+2025-03-30 23:45:38,107 - src.services.port_service - INFO - Enabling port COM16
+2025-03-30 23:45:38,110 - src.services.port_service - INFO - Enabling port COM14
+2025-03-30 23:45:38,116 - src.services.port_monitor - INFO - PortMonitor initialized
+2025-03-30 23:45:38,119 - src.services.port_monitor - INFO - Port monitoring started
+2025-03-30 23:46:30,717 - src.services.port_monitor - INFO - Port monitoring stopped
+2025-03-30 23:46:30,717 - __main__ - INFO - Application shutdown
+2025-03-30 23:50:15,278 - __main__ - INFO - Starting application
+2025-03-30 23:50:15,280 - src.utils.config - INFO - Loaded configuration from config.json
+2025-03-30 23:50:15,280 - src.utils.config - INFO - Loaded configuration from config.json
+2025-03-30 23:50:15,280 - src.utils.config - INFO - Loaded configuration from config.json
+2025-03-30 23:50:15,280 - src.services.port_service - INFO - PortService initialized
+2025-03-30 23:50:15,280 - src.services.port_service - INFO - Starting port detection
+2025-03-30 23:50:17,782 - src.services.port_service - INFO - Port detection complete: 0/16 connected
+2025-03-30 23:50:17,791 - src.services.port_monitor - INFO - PortMonitor initialized
+2025-03-30 23:50:17,795 - src.services.port_monitor - INFO - Port monitoring started
+2025-03-30 23:51:41,018 - src.services.port_service - INFO - Enabled all ports (16)
+2025-03-30 23:54:39,329 - src.services.port_monitor - INFO - Port monitoring stopped
+2025-03-30 23:54:39,331 - __main__ - INFO - Application shutdown

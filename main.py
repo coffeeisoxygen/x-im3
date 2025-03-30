@@ -120,7 +120,6 @@ def main():
                     for port in grouped_ports["connected"]:
                         active_status = "Aktif" if port.active else "Nonaktif"
                         print(f"  {port.device_id} - {port.name} - {active_status}")
-                    print(f"Total terhubung: {len(grouped_ports['connected'])}")
 
                 # Tampilkan port terputus
                 if grouped_ports["disconnected"]:
@@ -128,7 +127,6 @@ def main():
                     for port in grouped_ports["disconnected"]:
                         active_status = "Aktif" if port.active else "Nonaktif"
                         print(f"  {port.device_id} - {port.name} - {active_status}")
-                    print(f"Total terputus: {len(grouped_ports['disconnected'])}")
 
             elif cmd.startswith("enable "):
                 port_id = cmd.split(" ", 1)[1]

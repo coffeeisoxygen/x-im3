@@ -23,16 +23,25 @@ class PortController:
         return list(serial.tools.list_ports.comports())
 
     def open_connection(self, device_id):
-        """Membuka koneksi ke port serial"""
+        """Membuka koneksi ke port serial dengan timeout yang tepat"""
         try:
+            # Gunakan timeout lebih pendek untuk open connection
+            # sehingga tidak blocking terlalu lama jika port bermasalah
             connection = serial.Serial(
                 device_id,
                 baudrate=self.config["baudrate"],
-                timeout=self.config["timeout"],
+                timeout=min(
+                    self.config["timeout"], 0.5
+                ),  # Maksimal 0.5 detik untuk open
             )
-            time.sleep(0.5)  # Waktu inisialisasi
+            # Tunggu sebentar tapi tidak terlalu lama
+            time.sleep(0.2)
             logger.debug(f"Opened connection to {device_id}")
             return connection
+        except serial.SerialException as e:
+            # Perangkat mungkin diputus secara fisik
+            logger.debug(f"Cannot open {device_id}: {str(e)}")
+            return None
         except Exception as e:
             logger.error(f"Failed to open connection to {device_id}: {str(e)}")
             return None

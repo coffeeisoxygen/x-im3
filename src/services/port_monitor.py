@@ -74,7 +74,12 @@ class PortMonitor:
 
         while self.running:
             try:
-                # Dapatkan status port aktif
+                # PERBAIKAN: Refresh semua port terlebih dahulu
+                # untuk mendeteksi status koneksi secara real-time
+                for device_id in self.port_service.list_all_ports():
+                    self.port_service.refresh_port(device_id)
+
+                # Dapatkan status port aktif setelah refresh
                 active_ports = self.port_service.list_active_ports()
 
                 # Buat data status dengan timestamp
