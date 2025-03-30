@@ -235,3 +235,29 @@ class PortService:
                 port.set_status("disconnected")
             logger.debug(f"Could not connect to port {device_id}")
             return False
+
+    def get_sorted_ports(self):
+        """Mendapatkan semua port diurutkan berdasarkan nama (COM1, COM2, ...)"""
+        with self.lock:
+            # Konversi port ke list untuk pengurutan
+            ports_list = list(self.ports.values())
+
+            # Urutkan berdasarkan nomor COM (COM1, COM2, ...)
+            def get_com_number(port):
+                # Ekstrak angka dari COM10, COM2, dll.
+                try:
+                    return int(port.device_id.lower().replace("com", ""))
+                except ValueError:
+                    return 999  # Nilai tinggi untuk yang non-standard
+
+            return sorted(ports_list, key=get_com_number)
+
+    def get_grouped_ports(self):
+        """Mendapatkan port dikelompokkan berdasarkan status koneksi"""
+        sorted_ports = self.get_sorted_ports()
+
+        # Kelompokkan berdasarkan status
+        connected = [p for p in sorted_ports if p.is_connected()]
+        disconnected = [p for p in sorted_ports if not p.is_connected()]
+
+        return {"connected": connected, "disconnected": disconnected}

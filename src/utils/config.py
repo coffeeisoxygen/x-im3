@@ -9,7 +9,15 @@ DEFAULT_CONFIG = {
     "baudrate": 115200,
     "timeout": 1,
     "max_workers": 10,
-    "port_filters": ["USB Serial", "Modem", "GSM", "WWAN", "HUAWEI", "ZTE", "Sierra"],
+    "port_filters": [
+        "USB Serial Device",
+        "Modem",
+        "GSM",
+        "WWAN",
+        "HUAWEI",
+        "ZTE",
+        "Sierra",
+    ],
     "excluded_ports": ["Bluetooth", "Printer", "Mouse", "Keyboard"],
     "port_monitor_interval": 2,  # seconds
 }

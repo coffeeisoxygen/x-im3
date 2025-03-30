@@ -1,7 +1,6 @@
 import logging
-import threading
-import time
 
+from src.services.port_monitor import PortMonitor
 from src.services.port_service import PortService
 from src.utils.config import load_config
 
@@ -15,22 +14,38 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def monitor_ports(port_service):
-    """Loop untuk memonitor status port secara periodik"""
-    try:
-        while True:
-            active_ports = port_service.list_active_ports()
-            print("\n=== Status Port Aktif ===")
-            if not active_ports:
-                print("Tidak ada port aktif")
-            else:
-                for device_id, port in active_ports.items():
-                    status = "Terhubung" if port.is_connected() else "Terputus"
-                    print(f"{device_id} - {port.name} - {status}")
-            print("=========================")
-            time.sleep(2)
-    except Exception as e:
-        logger.error(f"Error in port monitoring: {str(e)}")
+def console_output_handler(status_data):
+    """Handler untuk output monitoring ke konsol"""
+    timestamp = status_data["timestamp"].strftime("%Y-%m-%d %H:%M:%S")
+    ports = status_data["ports"]
+
+    print(f"\n=== Status Port Aktif ({timestamp}) ===")
+    if not ports:
+        print("Tidak ada port aktif")
+    else:
+        # Urutkan port berdasarkan nama
+        sorted_ports = sorted(
+            ports.values(),
+            key=lambda p: int(p.device_id.lower().replace("com", "") or 0),
+        )
+
+        # Kelompokkan berdasarkan koneksi
+        connected = [p for p in sorted_ports if p.is_connected()]
+        disconnected = [p for p in sorted_ports if not p.is_connected()]
+
+        # Tampilkan port terhubung dulu
+        if connected:
+            print("- Terhubung:")
+            for port in connected:
+                print(f"  {port.device_id} - {port.name}")
+
+        # Kemudian port terputus
+        if disconnected:
+            print("- Terputus:")
+            for port in disconnected:
+                print(f"  {port.device_id} - {port.name}")
+
+    print("======================================")
 
 
 def main():
@@ -47,12 +62,25 @@ def main():
         # Deteksi port
         print("Mendeteksi port...")
         detected_ports = port_service.detect_ports()
+
+        # Tampilkan port terdeteksi dengan pengurutan yang lebih baik
+        grouped_ports = port_service.get_grouped_ports()
+
         print(f"\nDitemukan {len(detected_ports)} port:")
 
-        if detected_ports:
-            for device_id, port in detected_ports.items():
-                print(f"- {port}")
-        else:
+        # Tampilkan port terhubung
+        if grouped_ports["connected"]:
+            print("\n- Terhubung:")
+            for port in grouped_ports["connected"]:
+                print(f"  {port.device_id} - {port.name} - {port.status}")
+
+        # Tampilkan port terputus
+        if grouped_ports["disconnected"]:
+            print("\n- Terputus:")
+            for port in grouped_ports["disconnected"]:
+                print(f"  {port.device_id} - {port.name} - {port.status}")
+
+        if not detected_ports:
             print("Tidak ada port terdeteksi")
 
         # Auto-activate all connected ports
@@ -60,13 +88,10 @@ def main():
             port_service.enable_port(device_id)
             print(f"Port {device_id} diaktifkan otomatis")
 
-        # Start port monitoring thread
-        port_service.start_monitoring()
-
-        # Display monitoring information in separate thread
-        monitor_thread = threading.Thread(target=monitor_ports, args=(port_service,))
-        monitor_thread.daemon = True
-        monitor_thread.start()
+        # Setup dan mulai monitoring
+        port_monitor = PortMonitor(port_service, config)
+        port_monitor.add_output_handler(console_output_handler)
+        port_monitor.start()
 
         # Command line interface
         print("\nPerintah yang tersedia:")
@@ -84,10 +109,27 @@ def main():
             if cmd == "exit":
                 break
             elif cmd == "list":
-                all_ports = port_service.list_all_ports()
+                # Dapatkan port yang diurutkan
+                grouped_ports = port_service.get_grouped_ports()
+
                 print("\nSemua port:")
-                for device_id, port in all_ports.items():
-                    print(f"- {port}")
+
+                # Tampilkan port terhubung
+                if grouped_ports["connected"]:
+                    print("\n- Terhubung:")
+                    for port in grouped_ports["connected"]:
+                        active_status = "Aktif" if port.active else "Nonaktif"
+                        print(f"  {port.device_id} - {port.name} - {active_status}")
+                    print(f"Total terhubung: {len(grouped_ports['connected'])}")
+
+                # Tampilkan port terputus
+                if grouped_ports["disconnected"]:
+                    print("\n- Terputus:")
+                    for port in grouped_ports["disconnected"]:
+                        active_status = "Aktif" if port.active else "Nonaktif"
+                        print(f"  {port.device_id} - {port.name} - {active_status}")
+                    print(f"Total terputus: {len(grouped_ports['disconnected'])}")
+
             elif cmd.startswith("enable "):
                 port_id = cmd.split(" ", 1)[1]
                 if port_service.enable_port(port_id):
@@ -121,7 +163,7 @@ def main():
         logger.error(f"Unexpected error: {str(e)}")
     finally:
         # Cleanup
-        port_service.stop_monitoring()
+        port_monitor.stop()
         logger.info("Application shutdown")
         print("Program berakhir.")
 
