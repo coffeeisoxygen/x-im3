@@ -5,8 +5,8 @@ from concurrent.futures import ThreadPoolExecutor
 
 import serial
 
-from src.models.portmanager import PortManager
-from src.models.simcardmanager import SimCardManager
+from src.services.port_service import PortService
+from src.services.sim_service import SimService  # Asumsi akan dibuat
 from src.utils.logging import get_logger
 
 logger = get_logger("models.modemmanager")
@@ -15,14 +15,18 @@ logger = get_logger("models.modemmanager")
 class ModemManager:
     """
     Class utama untuk mengorkestrasi semua komponen aplikasi.
-    Mengelola interaksi antara PortManager dan SimCardManager.
+    Menggunakan Service Pattern untuk manajemen komponen.
     """
 
     def __init__(self, config_file="modem_config.json", max_workers=10):
-        """Inisialisasi ModemManager dengan komponen yang diperlukan"""
+        """Inisialisasi ModemManager dengan services yang diperlukan"""
         logger.info("Inisialisasi ModemManager")
-        self.port_manager = PortManager(config_file=config_file)
-        self.sim_manager = SimCardManager()
+
+        # Inisialisasi services
+        self.port_service = PortService(config_file=config_file)
+        self.sim_service = SimService()  # Perlu dibuat
+
+        # Setup threading components
         self.executor = ThreadPoolExecutor(max_workers=max_workers)
         self.command_queue = queue.Queue()
         self.response_callbacks = {}
@@ -74,23 +78,25 @@ class ModemManager:
         """Deteksi semua perangkat secara paralel"""
         logger.info("Mendeteksi semua perangkat")
 
-        # Deteksi port terlebih dahulu (sudah paralel di PortManager)
-        self.port_manager.detect_ports(max_workers=8)
+        # Deteksi port terlebih dahulu (sudah paralel di PortService)
+        self.port_service.detect_ports(max_workers=8)
 
         # Kemudian deteksi SIM card pada port yang terdeteksi
-        sim_count = self.sim_manager.update_from_portmanager(self.port_manager)
+        available_ports = self.port_service.get_available_ports()
+        sim_count = self.sim_service.detect_simcards_from_ports(available_ports)
 
         return {
             "ports": {
-                "all": self.port_manager.get_all_ports(),
-                "connected": self.port_manager.get_connected_ports(),
+                "all": self.port_service.get_all_ports(),
+                "connected": self.port_service.get_connected_ports(),
                 "disconnected": [
-                    p
-                    for p in self.port_manager.get_all_ports()
-                    if p.status == "disconnected"
+                    p for p in self.port_service.get_all_ports() if not p.is_connected()
                 ],
             },
-            "sim_cards": {"count": sim_count, "all": self.sim_manager.list_simcards()},
+            "sim_cards": {
+                "count": sim_count,
+                "all": self.sim_service.get_all_simcards(),
+            },
         }
 
     def send_at_command(self, port_device, command, timeout=1):
@@ -105,11 +111,11 @@ class ModemManager:
         Returns:
             Respons dari modem atau None jika gagal
         """
-        if port_device not in self.port_manager.ports:
+        if port_device not in self.port_service.ports:
             logger.warning(f"Port {port_device} tidak ditemukan")
             return None
 
-        port = self.port_manager.ports[port_device]
+        port = self.port_service.ports[port_device]
         if port.status != "connected" or not port.enabled:
             logger.warning(f"Port {port_device} tidak terhubung atau tidak diaktifkan")
             return None
@@ -155,7 +161,7 @@ class ModemManager:
             Dict dengan port device sebagai key dan respons sebagai value
         """
         logger.info(f"Mengirim command '{command}' ke semua port aktif")
-        available_ports = self.port_manager.get_available_ports()
+        available_ports = self.port_service.get_available_ports()
         results = {}
 
         for port in available_ports:
@@ -176,7 +182,7 @@ class ModemManager:
         Returns:
             Future object that will contain results dict when done
         """
-        available_ports = self.port_manager.get_available_ports()
+        available_ports = self.port_service.get_available_ports()
         results = {}
 
         def process_port(port):
@@ -246,7 +252,7 @@ class ModemManager:
             Dict dengan port device sebagai key dan respons sebagai value
         """
         logger.info(f"Dialing USSD code {ussd_code} ke semua port aktif")
-        available_ports = self.port_manager.get_available_ports()
+        available_ports = self.port_service.get_available_ports()
         results = {}
 
         for port in available_ports:
@@ -255,29 +261,29 @@ class ModemManager:
 
         return results
 
-    def enable_port(self, port_device):
+    def enable_port(self, device_id):
         """Aktifkan port tertentu"""
-        return self.port_manager.enable_port(port_device)
+        return self.port_service.enable_port(device_id)
 
-    def disable_port(self, port_device):
+    def disable_port(self, device_id):
         """Nonaktifkan port tertentu"""
-        return self.port_manager.disable_port(port_device)
+        return self.port_service.disable_port(device_id)
 
     def get_sim_info(self, iccid):
         """Dapatkan informasi SIM card berdasarkan ICCID"""
-        return self.sim_manager.get_simcard_info(iccid)
+        return self.sim_service.get_simcard_info(iccid)
 
     def get_port_status(self):
         """Dapatkan status semua port"""
-        ports = self.port_manager.get_all_ports()
+        ports = self.port_service.get_all_ports()
         return {
-            port.device: {"enabled": port.enabled, "status": port.status}
+            port.device_id: {"enabled": port.enabled, "status": port.status}
             for port in ports
         }
 
     def get_single_port_status(self, port_device):
         """Dapatkan status port tertentu"""
-        port = self.port_manager.get_port(port_device)
+        port = self.port_service.get_port(port_device)
         if port:
             return {"enabled": port.enabled, "status": port.status}
         else:
